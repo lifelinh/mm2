@@ -13,7 +13,9 @@ impl GameData {
         games.into_iter().filter(|game| game.title.to_lowercase() == game_name.to_lowercase()).collect()
     }
     fn date_only(&mut self) {
-        self.date = self.date[..10].to_string();
+        if let Some(space) = self.date.find(' ') {
+            self.date = self.date[..space].to_string()
+        }
     }
 }
 fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>> {
