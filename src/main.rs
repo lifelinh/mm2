@@ -107,8 +107,21 @@ fn linear_regression(data: Vec<(String, f64)>) -> (f64, f64) {
     let sum_xy: f64 = data.iter().enumerate().map(|(x, (_, y))| x as f64 * y).sum();
     let m = (n * sum_xy - sum_x * sum_y) / (n * sum_x_squared - sum_x * sum_x);
     let b = (sum_y - m * sum_x) / n;
-    
     (m, b)
+}
+fn predict_until_dead(start_date: &str, slope: f64, intercept: f64) -> (Vec<(String, f64)>, usize) {
+    let mut predictions = Vec::new();
+    let mut day = 0;
+    let mut predicted_active_users = slope * day as f64 + intercept;
+    while predicted_active_users > 0.0 {
+        let date = NaiveDate::parse_from_str(start_date, "%Y-%m-%d").expect("Invalid date format") + chrono::Duration::days(day as i64);
+        let date_str = date.format("%Y-%m-%d").to_string();
+        predictions.push((date_str, predicted_active_users));
+        day += 1;
+        predicted_active_users = slope * day as f64 + intercept;
+    }
+    let days_until_dead = day;
+    (predictions, days_until_dead)
 }
 fn main() -> Result<(), Box<dyn Error>> {
     let file_path = "roblox_games_data.csv";
@@ -130,5 +143,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     let (slope, intercept) = linear_regression(daily_average.clone());
     println!("Linear Regression: y = {:.2}x + {:.2}", slope, intercept);
+    let (predictions, days_until_zero) = predict_until_dead("2022-05-03", slope, intercept);
+    for (date, predicted_active_users) in predictions {
+        println!("Date: {}, Predicted daily average active users: {:.2}", date, predicted_active_users);
+    }
+    println!("It may take {} days for the game to die.", days_until_zero);
     Ok(())
 }
