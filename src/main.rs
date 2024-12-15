@@ -1,5 +1,6 @@
 use csv::ReaderBuilder;
 use chrono::NaiveDate;
+use chrono::Datelike;
 use std::collections::{HashMap, BTreeMap};
 use std::error::Error;
 use std::fs::File;
@@ -36,6 +37,31 @@ impl GameData {
             (date, average)
         }).collect()
     }
+    fn day_of_week(date: &str) -> String {
+        let date = NaiveDate::parse_from_str(date, "%Y-%m-%d").expect("Date is not in yyyy-mm-dd format");
+        match date.weekday() {
+            chrono::Weekday::Mon => "Monday".to_string(),
+            chrono::Weekday::Tue => "Tuesday".to_string(),
+            chrono::Weekday::Wed => "Wednesday".to_string(),
+            chrono::Weekday::Thu => "Thursday".to_string(),
+            chrono::Weekday::Fri => "Friday".to_string(),
+            chrono::Weekday::Sat => "Saturday".to_string(),
+            chrono::Weekday::Sun => "Sunday".to_string(),
+        }
+    }
+    fn average_by_day_of_week(games: Vec<(String, f64)>) -> HashMap<String, f64> {
+        let mut day_of_week_sums: HashMap<String, (f64, i64)> = HashMap::new();
+        for (date, average_active_users) in games {
+            let day_of_week = GameData::day_of_week(&date);
+            let entry = day_of_week_sums.entry(day_of_week).or_insert((0.0, 0));
+            entry.0 += average_active_users;
+            entry.1 += 1
+        }
+        day_of_week_sums.into_iter().map(|(day, (sum, count))| {
+            let average = sum / count as f64;
+            (day, average)
+        }).collect()
+    }
 }
 fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>> {
     let file = File::open(file_path)?;
@@ -67,8 +93,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let filtered_games_by_name = GameData::filter_by_game_name(filtered_games, game_name);
     let mut daily_average = GameData::hourly_average_users(filtered_games_by_name);
     daily_average.sort_by(| a, b| a.0.cmp(&b.0));
-    for (date, active_users) in daily_average {
+    for (date, active_users) in &daily_average {
         println!("Date: {}, Total Active Users: {}", date, active_users);
+    }
+    let day_of_week_averages = GameData::average_by_day_of_week(daily_average);
+    for (day, average_users) in day_of_week_averages {
+        println!("{}: {:.2}", day, average_users);
     }
     Ok(())
 }
