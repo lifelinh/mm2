@@ -1,4 +1,5 @@
 use csv::ReaderBuilder;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 #[derive(Debug)]
@@ -16,6 +17,13 @@ impl GameData {
         if let Some(space) = self.date.find(' ') {
             self.date = self.date[..space].to_string()
         }
+    }
+    fn daily_active_users(games: Vec<GameData>) -> Vec<(String, i64)> {
+        let mut total: HashMap<String, i64> = HashMap::new();
+        for game in games {
+            *total.entry(game.date.clone()).or_insert(0) += game.active_users;
+        }
+        total.into_iter().collect()
     }
 }
 fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>> {
@@ -42,11 +50,18 @@ fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>>
 }
 fn main() -> Result<(), Box<dyn Error>> {
     let file_path = "roblox_games_data.csv";
-    let filtered_games = read_filtered_games(file_path)?;
+    let mut filtered_games = read_filtered_games(file_path)?;
+    
     let game_name = "MurderMystery2By@Nikilis";
     let filtered_games_by_name = GameData::filter_by_game_name(filtered_games, game_name);
-    for game in filtered_games_by_name {
-        println!("{:?}", game);
+
+    // Combine games with the same date and sum active users
+    let mut daily_player_counts = GameData::daily_active_users(filtered_games_by_name);
+    daily_player_counts.sort_by(| a, b| a.0.cmp(&b.0));
+    // Print combined results
+    for (date, active_users) in daily_player_counts {
+        println!("Date: {}, Total Active Users: {}", date, active_users);
     }
+    
     Ok(())
 }
