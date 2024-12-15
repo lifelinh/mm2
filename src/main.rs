@@ -62,7 +62,32 @@ impl GameData {
             (day, average)
         }).collect()
     }
+    fn average_by_month(games: Vec<(String, f64)>) -> Vec<(String, f64)> {
+        let mut month_sums: HashMap<String, (f64, i64)> = HashMap::new(); // (sum, count)
+        
+        for (date, avg_active_users) in games {
+            let month = NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+                .expect("Invalid date format")
+                .format("%Y-%m")
+                .to_string(); // Extract year and month as YYYY-MM
+            
+            let entry = month_sums.entry(month).or_insert((0.0, 0));
+            entry.0 += avg_active_users; // Sum the averages for each month
+            entry.1 += 1;                // Count the number of days
+        }
+        
+        let mut month_avg: Vec<(String, f64)> = month_sums.into_iter().map(|(month, (sum, count))| {
+            let average = sum / count as f64; // Calculate the average for each month
+            (month, average)
+        }).collect();
+
+        // Sort by month to display chronologically
+        month_avg.sort_by(|a, b| a.0.cmp(&b.0)); // Sort by the month (first part of the tuple)
+
+        month_avg
+    }
 }
+
 fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>> {
     let file = File::open(file_path)?;
     let mut rdr = ReaderBuilder::new().delimiter(b',').has_headers(true).from_reader(file);
@@ -96,9 +121,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     for (date, active_users) in &daily_average {
         println!("Date: {}, Total Active Users: {}", date, active_users);
     }
-    let day_of_week_averages = GameData::average_by_day_of_week(daily_average);
+    let day_of_week_averages = GameData::average_by_day_of_week(daily_average.clone());
     for (day, average_users) in day_of_week_averages {
         println!("{}: {:.2}", day, average_users);
+    }
+    let monthly_averages = GameData::average_by_month(daily_average);
+    for (month, average_users) in monthly_averages {
+        println!("{}: {:.2}", month, average_users);
     }
     Ok(())
 }
