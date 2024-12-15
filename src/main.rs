@@ -12,6 +12,9 @@ impl GameData {
     fn filter_by_game_name(games: Vec<GameData>, game_name: &str) -> Vec<GameData> {
         games.into_iter().filter(|game| game.title.to_lowercase() == game_name.to_lowercase()).collect()
     }
+    fn date_only(&mut self) {
+        self.date = self.date[..10].to_string();
+    }
 }
 fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>> {
     let file = File::open(file_path)?;
@@ -24,12 +27,13 @@ fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>>
     let mut games_data = Vec::new();
     for result in rdr.records() {
         let record = result?;
-        let game = GameData {
+        let mut game = GameData {
             date: record.get(date).ok_or("Missing 'Date' value")?.to_string(),
             active_users: record.get(active_users).ok_or("Missing 'Active Users' value")?.parse::<i64>()?,
             title: record.get(title).ok_or("Missing 'Title' value")?.to_string(),
             creator: record.get(creator).ok_or("Missing 'Creator' value")?.to_string(),
         };
+        game.date_only();
         games_data.push(game);
     }
     Ok(games_data)
@@ -37,7 +41,7 @@ fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>>
 fn main() -> Result<(), Box<dyn Error>> {
     let file_path = "roblox_games_data.csv";
     let filtered_games = read_filtered_games(file_path)?;
-        let game_name = "MurderMystery2By@Nikilis";
+    let game_name = "MurderMystery2By@Nikilis";
     let filtered_games_by_name = GameData::filter_by_game_name(filtered_games, game_name);
     for game in filtered_games_by_name {
         println!("{:?}", game);
