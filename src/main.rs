@@ -1,5 +1,6 @@
 use csv::ReaderBuilder;
-use std::collections::HashMap;
+use chrono::NaiveDate;
+use std::collections::{HashMap, BTreeMap};
 use std::error::Error;
 use std::fs::File;
 #[derive(Debug)]
@@ -18,12 +19,22 @@ impl GameData {
             self.date = self.date[..space].to_string()
         }
     }
-    fn daily_active_users(games: Vec<GameData>) -> Vec<(String, i64)> {
-        let mut total: HashMap<String, i64> = HashMap::new();
-        for game in games {
-            *total.entry(game.date.clone()).or_insert(0) += game.active_users;
+    fn format_date(&mut self) {
+        if let Ok(parsed_date) = NaiveDate::parse_from_str(&self.date, "%m/%d/%Y") {
+            self.date = parsed_date.format("%Y-%m-%d").to_string(); // Convert to yyyy-mm-dd
         }
-        total.into_iter().collect()
+    }
+    fn hourly_average_users(games: Vec<GameData>) -> Vec<(String, f64)> {
+        let mut combined: HashMap<String, (i64, i64)> = HashMap::new(); // (sum, count)
+        for game in games {
+            let entry = combined.entry(game.date.clone()).or_insert((0, 0));
+            entry.0 += game.active_users;
+            entry.1 += 1;
+        }
+        combined.into_iter().map(|(date, (sum, count))| {
+            let average = sum as f64 / count as f64;
+            (date, average)
+        }).collect()
     }
 }
 fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>> {
@@ -44,6 +55,7 @@ fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>>
             creator: record.get(creator).ok_or("Missing 'Creator' value")?.to_string(),
         };
         game.date_only();
+        game.format_date();
         games_data.push(game);
     }
     Ok(games_data)
@@ -51,17 +63,12 @@ fn read_filtered_games(file_path: &str) -> Result<Vec<GameData>, Box<dyn Error>>
 fn main() -> Result<(), Box<dyn Error>> {
     let file_path = "roblox_games_data.csv";
     let mut filtered_games = read_filtered_games(file_path)?;
-    
     let game_name = "MurderMystery2By@Nikilis";
     let filtered_games_by_name = GameData::filter_by_game_name(filtered_games, game_name);
-
-    // Combine games with the same date and sum active users
-    let mut daily_player_counts = GameData::daily_active_users(filtered_games_by_name);
-    daily_player_counts.sort_by(| a, b| a.0.cmp(&b.0));
-    // Print combined results
-    for (date, active_users) in daily_player_counts {
+    let mut daily_average = GameData::hourly_average_users(filtered_games_by_name);
+    daily_average.sort_by(| a, b| a.0.cmp(&b.0));
+    for (date, active_users) in daily_average {
         println!("Date: {}, Total Active Users: {}", date, active_users);
     }
-    
     Ok(())
 }
