@@ -124,21 +124,21 @@ fn predict_until_dead(start_date: &str, slope: f64, intercept: f64) -> (Vec<(Str
     let mut predictions = Vec::new();
     let mut day = 0;
     let mut predicted_active_users = slope * day as f64 + intercept;
-    while predicted_active_users > 0.0 {
-        // Use chrono to increment the day by one, calculating the predicted active users until the player count will reach 0
+    while predicted_active_users > 0.0 && day < 365 {
+        // Use chrono to increment the day by one, calculating the predicted active users until the player count will reach 0, or 365 days have passed
         let date = NaiveDate::parse_from_str(start_date, "%Y-%m-%d").expect("Invalid date format") + chrono::Duration::days(day as i64);
         let date_str = date.format("%Y-%m-%d").to_string();
         predictions.push((date_str, predicted_active_users));
         day += 1;
         predicted_active_users = slope * day as f64 + intercept;
     }
-    let days_until_dead = day;
-    (predictions, days_until_dead)
+    let days_until_stopped = day;
+    (predictions, days_until_stopped)
 }
 fn main() -> Result<(), Box<dyn Error>> {
     let file_path = "roblox_games_data.csv";
     let filtered_games = read_filtered_games(file_path)?;
-    let game_name = "MurderMystery2By@Nikilis";
+    let game_name = "MurderMystery2By@Nikilis"; // Change for any game name to analyze
     let filtered_games_by_name = GameData::filter_by_game_name(filtered_games, game_name);
     let mut daily_average = GameData::hourly_average_users(filtered_games_by_name);
     daily_average.sort_by(| a, b| a.0.cmp(&b.0));
